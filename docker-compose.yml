@@ -1,0 +1,36 @@
+services:
+  localstack:
+    container_name: localstack_main
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,sqs,dynamodb,iam
+      - DEBUG=1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  bridge:
+    build: .
+    container_name: bridge_service
+    depends_on:
+      localstack:
+        condition: service_healthy
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+      - SQS_QUEUE_NAME=data-processing-queue
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
+      - GCP_TOPIC_NAME=localstack-events
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/key.json
+    volumes:
+      - ${PATH_TO_GCP_KEYFILE}:/app/key.json
